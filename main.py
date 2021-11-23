@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import hashes
 import json
 import os
 import pickle
+from tqdm import tqdm
 
 with open('settings.json') as json_file:
     json_data = json.load(json_file)
@@ -22,6 +23,15 @@ path_secret_key = json_data["secret_key"]
 
 
 def key_generation(path_to_symmetric_key: str, path_to_public_key: str, path_to_secret_key: str) -> None:
+    """
+    Функция создает симметричный ключ для шифрования текст и пару ключей(public, private) для передачи симметричный ключ
+    и зашифровывает ключ симметричного шифрования открытым ключом
+
+    :param path_to_symmetric_key: путь сохранения зашифрованного симметричного ключа
+    :param path_to_public_key: путь сохранения публичного ключа ассиметричного алгоритма
+    :param path_to_secret_key: путь сохранения приватного ключа ассиметричного алгоритма
+    :return: None
+    """
     symmetric_key = algorithms.IDEA(os.urandom(16))
     rsa_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     private_key = rsa_key
@@ -42,6 +52,15 @@ def key_generation(path_to_symmetric_key: str, path_to_public_key: str, path_to_
 
 def encrypt_file(path_to_initial_file: str, path_to_secret_key: str, path_to_symmetric_key: str,
                  path_to_encrypt_file: str) -> None:
+    """
+    Это функция зашифровывает текст симметричным алгоритмом
+
+    :param path_to_initial_file: путь к шифруемому текстовому файлу
+    :param path_to_secret_key: путь к закрытому ключу ассиметричного алгоритма
+    :param path_to_symmetric_key: путь к зашированному ключу симметричного алгоритма
+    :param path_to_encrypt_file: путь, по которому сохранить зашифрованный текстовый файл
+    :return: None
+    """
     with open(path_to_symmetric_key, mode='rb') as key_file:
         encrypt_symmetric_key = key_file.read()
 
@@ -53,7 +72,7 @@ def encrypt_file(path_to_initial_file: str, path_to_secret_key: str, path_to_sym
                                                   pad_asym.OAEP(mgf=pad_asym.MGF1(algorithm=hashes.SHA256()),
                                                                 algorithm=hashes.SHA256(), label=None))
 
-    with open(path_to_initial_file, 'r', encoding='windows-1251') as file:
+    with open(path_to_initial_file, 'r', encoding='utf-8') as file:
         initial_file = file.read()
 
     padder = padding.ANSIX923(128).padder()
@@ -71,6 +90,14 @@ def encrypt_file(path_to_initial_file: str, path_to_secret_key: str, path_to_sym
 
 def decrypt_file(path_to_encrypt_file: str, path_to_secret_key: str, path_to_symmetric_key: str,
                  path_to_decrypted_file: str):
+    """
+    Функция расшифровывает текст симметричным алгоритмом и сохранить по указанному пути
+    :param path_to_encrypt_file: путь к зашифрованному текстовому файлу
+    :param path_to_secret_key: путь к закрытому ключу ассиметричного алгоритма
+    :param path_to_symmetric_key: путь к зашированному ключу симметричного алгоритма
+    :param path_to_decrypted_file: путь, по которому сохранить расшифрованный текстовый файл
+    :return: None
+    """
     with open(path_to_symmetric_key, mode='rb') as key_file:
         encrypt_symmetric_key = key_file.read()
 
@@ -94,9 +121,25 @@ def decrypt_file(path_to_encrypt_file: str, path_to_secret_key: str, path_to_sym
     unpadder = padding.ANSIX923(128).unpadder()
     unpadded_decrypt_text = unpadder.update(decrypt_text) + unpadder.finalize()
     with open(path_to_decrypted_file, 'w', encoding='utf-8') as file:
-        file.write(unpadded_decrypt_text.decode("utf-8"))
+        file.write(str(unpadded_decrypt_text.decode("utf-8")))
 
 
-key_generation(path_symmetric_key, path_public_key, path_secret_key)
-encrypt_file(path_initial_file, path_secret_key, path_symmetric_key, path_encrypted_file)
-decrypt_file(path_encrypted_file, path_secret_key, path_symmetric_key, path_decrypted_file)
+parser = argparse.ArgumentParser(description="main.py")
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument('-gen', '--generation', help='Запускает режим генерации ключей')
+group.add_argument('-enc', '--encryption', help='Запускает режим шифрования')
+group.add_argument('-dec', '--decryption', help='Запускает режим дешифрования')
+
+args = parser.parse_args()
+if args.generation is not None:
+    with tqdm(100, desc="Process of key generation") as pbar:
+        key_generation(path_symmetric_key, path_public_key, path_secret_key)
+        pbar.update(100)
+elif args.encryption is not None:
+    with tqdm(100, desc="Process of encrypting a file") as pbar:
+        encrypt_file(path_initial_file, path_secret_key, path_symmetric_key, path_encrypted_file)
+        pbar.update(100)
+else:
+    with tqdm(100, desc="Process of decrypting a file") as pbar:
+        decrypt_file(path_encrypted_file, path_secret_key, path_symmetric_key, path_decrypted_file)
+        pbar.update(100)
