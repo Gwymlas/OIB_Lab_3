@@ -75,7 +75,7 @@ def encrypt_file(path_to_initial_file: str, path_to_secret_key: str, path_to_sym
     with open(path_to_initial_file, 'r', encoding='utf-8') as file:
         initial_file = file.read()
 
-    padder = padding.ANSIX923(128).padder()
+    padder = padding.ANSIX923(64).padder()
     text = bytes(initial_file, 'UTF-8')
     padded_text = padder.update(text) + padder.finalize()
     iv = os.urandom(8)  # случайное значение для инициализации блочного режима,
@@ -118,7 +118,7 @@ def decrypt_file(path_to_encrypt_file: str, path_to_secret_key: str, path_to_sym
     decryptor = cipher.decryptor()
     decrypt_text = decryptor.update(encrypt_text) + decryptor.finalize()
 
-    unpadder = padding.ANSIX923(128).unpadder()
+    unpadder = padding.ANSIX923(64).unpadder()
     unpadded_decrypt_text = unpadder.update(decrypt_text) + unpadder.finalize()
     with open(path_to_decrypted_file, 'w', encoding='utf-8') as file:
         file.write(str(unpadded_decrypt_text.decode("utf-8")))
